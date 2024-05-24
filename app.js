@@ -44,19 +44,19 @@ convertToArray = dbObj => {
 app.post('/register/', async (request, response) => {
   const {username, password, name, gender} = request.body
   console.log(password)
-  const hashedPassword = await bcrypt.hash(password, 10)
   const getUsernameQuery = `select * from User where username='${username}';`
   const dbUsername = await db.get(getUsernameQuery)
-  if (dbUsername != undefined) {
+  if (dbUsername !== undefined) {
     response.status(400)
     response.send('User already exists')
   } else {
-    if (password < 6) {
+    if (password.length < 6) {
       response.status(400)
       response.send('Password is too short')
     } else {
-      const createNewUserQuery = `INSERT INTO User(username,password,name,gender) VALUES
-            ('${username}','${hashedPassword}','${name}','${gender}');`
+      const hashedPassword = await bcrypt.hash(password, 10)
+      const createNewUserQuery = `INSERT INTO User(name,username,password,gender) VALUES
+            ('${name}','${username}','${hashedPassword}','${gender}');`
       await db.run(createNewUserQuery)
       response.status(200)
       response.send('User created successfully')
@@ -109,7 +109,7 @@ const authenticateToken = (request, response, next) => {
 
 app.get('/user/tweets/feed/', authenticateToken, async (request, response) => {
   const {limit} = request.query
-  const getUserTweetsQuery = `select username,tweet,tweet.date_time from User JOIN Tweet 
+  const getUserTweetsQuery = `select username,tweet,tweet.date_time from User INNER JOIN Tweet 
 ON User.user_id=Tweet.user_id ORDER BY tweet.date_time DESC limit ${limit};`
   const getUserTweets = await db.all(getUserTweetsQuery)
   response.send(getUserTweets.map(tweet => convertToCamelCase(tweet)))
@@ -148,7 +148,7 @@ app.get('/tweets/:tweetId/', authenticateToken, async (request, response) => {
   const followerTweetsQuery = `select tweet,COUNT(DISTINCT Like.like_id) AS likes, COUNT(DISTINCT reply.reply_id) AS replies,Tweet.date_time AS dateTime
   from Follower INNER JOIN Tweet ON Follower.following_user_id=Tweet.user_id LEFT JOIN Reply ON 
   Tweet.tweet_id=reply.tweet_id LEFT JOIN like ON Tweet.tweet_id=like.tweet_id
-  WHERE follower_user_id=${user_id} AND Tweet.tweet_id=${tweetId}
+  WHERE follower_user_id=${user_id} AND Tweet.tweet_id=${tweetId} GROUP BY Tweet.tweet_id ORDER BY Tweet.tweet_id
   ;`
   const getFollowersTweets = await db.get(followerTweetsQuery)
   if (getFollowersTweets === undefined) {
