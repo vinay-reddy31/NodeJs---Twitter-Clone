@@ -108,9 +108,13 @@ const authenticateToken = (request, response, next) => {
 }
 
 app.get('/user/tweets/feed/', authenticateToken, async (request, response) => {
+  const {username} = request
+  const getUsernameQuery = `select user_id from User where username='${username}';`
+  const {user_id} = await db.get(getUsernameQuery)
   const {limit} = request.query
   const getUserTweetsQuery = `select username,tweet,tweet.date_time from User INNER JOIN Tweet 
-ON User.user_id=Tweet.user_id ORDER BY tweet.date_time DESC limit ${limit};`
+ON User.user_id=Tweet.user_id INNER JOIN Follower ON Follower.following_user_id=Tweet.user_id
+where Follower.follower_user_id=${user_id} ORDER BY tweet.date_time DESC limit ${limit};`
   const getUserTweets = await db.all(getUserTweetsQuery)
   response.send(getUserTweets.map(tweet => convertToCamelCase(tweet)))
 })
