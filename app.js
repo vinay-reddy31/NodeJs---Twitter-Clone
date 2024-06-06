@@ -112,9 +112,18 @@ app.get('/user/tweets/feed/', authenticateToken, async (request, response) => {
   const getUsernameQuery = `select user_id from User where username='${username}';`
   const {user_id} = await db.get(getUsernameQuery)
   const {limit} = request.query
-  const getUserTweetsQuery = `select username,tweet,tweet.date_time from User INNER JOIN Tweet 
-ON User.user_id=Tweet.user_id INNER JOIN Follower ON Follower.following_user_id=Tweet.user_id
-where Follower.follower_user_id=${user_id} ORDER BY tweet.date_time DESC limit ${limit};`
+  const getUserTweetsQuery = `SELECT user.username, tweet.tweet, tweet.date_time AS dateTime
+  FROM
+    follower
+INNER JOIN tweet
+ON follower.following_user_id = tweet.user_id
+INNER JOIN user
+ON tweet.user_id = user.user_id
+WHERE
+follower.follower_user_id = ${user_id}
+ORDER BY
+tweet.date_time DESC
+LIMIT 4;`
   const getUserTweets = await db.all(getUserTweetsQuery)
   response.send(getUserTweets.map(tweet => convertToCamelCase(tweet)))
 })
